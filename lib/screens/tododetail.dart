@@ -4,6 +4,17 @@ import 'package:rks_todo/util/dbhelper.dart';
 import 'package:intl/intl.dart'; //for date internationalization
 import 'package:rks_todo/screens/tododetail.dart';
 
+DbHelper helper = DbHelper();
+final List<String> choices = const <String>[
+  'Save Todo & Back',
+  'Delete Todo',
+  'Back to List'
+];
+
+const manuSave = 'Save Todo & Back';
+const manuDelete = 'Delete Todo';
+const manuBack = 'Back to List';
+
 class TodoDetail extends StatefulWidget {
   final Todo todo;
   TodoDetail(this.todo);
@@ -28,6 +39,19 @@ class TodoDetailState extends State {
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text(todo.title),
+          actions: <Widget>[
+            PopupMenuButton<String>(
+              onSelected: select,
+              itemBuilder: (BuildContext context) {
+                return choices.map((String choice) {
+                  return PopupMenuItem<String>(
+                    value: choice,
+                    child: Text(choice),
+                  );
+                }).toList();
+              },
+            )
+          ],
         ),
         body: Padding(
             padding:
@@ -38,6 +62,7 @@ class TodoDetailState extends State {
                   TextField(
                     controller: titleController,
                     style: textStyle,
+                    onChanged: (value) => this.updateTitle(),
                     decoration: InputDecoration(
                         labelText: "Title",
                         labelStyle: textStyle,
@@ -49,7 +74,8 @@ class TodoDetailState extends State {
                       top: 15.0,
                     ),
                     child: TextField(
-                      controller: titleController,
+                      controller: descriptionController,
+                      onChanged: (value) => this.updateDescription(),
                       style: textStyle,
                       decoration: InputDecoration(
                           labelText: "Description",
@@ -67,11 +93,76 @@ class TodoDetailState extends State {
                       );
                     }).toList(),
                     style: textStyle,
-                    value: "High",
-                    onChanged: (value) => value,
+                    value: retrievePriority(todo.priority),
+                    onChanged: (value) => updatePriority(value),
                   ))
                 ],
               )
             ])));
+  }
+
+  void select(String value) async {
+    int result;
+    switch (value) {
+      case manuSave:
+        save();
+        break;
+      case manuDelete:
+        Navigator.pop(context, true);
+        if (todo.id == null) {
+          return;
+        }
+        result = await helper.deleteTodo(todo.id);
+        if (result != 0) {
+          AlertDialog alertDialog = AlertDialog(
+            title: Text("Delete Todo"),
+            content: Text("The todo has been deleted "),
+          );
+          showDialog(context: context, builder: (_) => alertDialog);
+        }
+        break;
+      case manuBack:
+        Navigator.pop(context, true);
+        break;
+    }
+  }
+
+  void save() {
+    todo.date = new DateFormat.yMd().format(DateTime.now());
+    if (todo.id != null) {
+      helper.updateTodo(todo);
+    } else {
+      helper.insertTodo(todo);
+    }
+    Navigator.pop(context, true);
+  }
+
+  void updatePriority(String value) {
+    switch (value) {
+      case "High":
+        todo.priority = 1;
+        break;
+      case "Medium":
+        todo.priority = 2;
+        break;
+      case "Low":
+        todo.priority = 3;
+        break;
+    }
+    setState(() {
+      _priority = value;
+    });
+  }
+
+  String retrievePriority(int value) {
+    return _priorities[value - 1];
+  }
+
+  void updateTitle() {
+    todo.title = titleController.text;
+  }
+
+  void updateDescription() {
+    todo.description = descriptionController.text;
   }
 }
